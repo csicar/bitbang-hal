@@ -13,12 +13,11 @@
 //! MSB-first and LSB-first bit orders are supported.
 //!
 
+use embedded_hal::delay::DelayNs;
 pub use embedded_hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal::spi::{FullDuplex, Mode, Polarity};
-use embedded_hal::timer::{CountDown, Periodic};
-use nb::block;
 
 /// Error type
 #[derive(Debug)]
@@ -52,7 +51,7 @@ where
     Miso: InputPin,
     Mosi: OutputPin,
     Sck: OutputPin,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     mode: Mode,
     miso: Miso,
@@ -68,7 +67,7 @@ where
     Miso: InputPin<Error = E>,
     Mosi: OutputPin<Error = E>,
     Sck: OutputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     /// Create instance
     pub fn new(mode: Mode, miso: Miso, mosi: Mosi, sck: Sck, timer: Timer) -> Self {
@@ -156,7 +155,7 @@ where
     Miso: InputPin<Error = E>,
     Mosi: OutputPin<Error = E>,
     Sck: OutputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     type Error = crate::spi::Error<E>;
 
@@ -217,22 +216,22 @@ where
     }
 }
 
-impl<Miso, Mosi, Sck, Timer, E> embedded_hal::blocking::spi::transfer::Default<u8>
+impl<Miso, Mosi, Sck, Timer, E> embedded_hal::spi::transfer::Default<u8>
     for SPI<Miso, Mosi, Sck, Timer>
 where
     Miso: InputPin<Error = E>,
     Mosi: OutputPin<Error = E>,
     Sck: OutputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
 }
 
-impl<Miso, Mosi, Sck, Timer, E> embedded_hal::blocking::spi::write::Default<u8>
+impl<Miso, Mosi, Sck, Timer, E> embedded_hal::spi::write::Default<u8>
     for SPI<Miso, Mosi, Sck, Timer>
 where
     Miso: InputPin<Error = E>,
     Mosi: OutputPin<Error = E>,
     Sck: OutputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
 }

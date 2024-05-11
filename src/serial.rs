@@ -8,10 +8,11 @@
 //! The timer must be configured to twice the desired communication frequency.
 //!
 
-use embedded_hal::digital::v2::{InputPin, OutputPin};
-use embedded_hal::serial;
-use embedded_hal::timer::{CountDown, Periodic};
-use nb::block;
+use embedded_hal::{
+    delay::DelayNs,
+    digital::{InputPin, OutputPin},
+};
+use embedded_hal_nb::nb::block;
 
 /// Serial communication error type
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct Serial<TX, RX, Timer>
 where
     TX: OutputPin,
     RX: InputPin,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     tx: TX,
     rx: RX,
@@ -36,7 +37,7 @@ impl<TX, RX, Timer, E> Serial<TX, RX, Timer>
 where
     TX: OutputPin<Error = E>,
     RX: InputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     /// Create instance
     pub fn new(tx: TX, rx: RX, timer: Timer) -> Self {
@@ -53,7 +54,7 @@ impl<TX, RX, Timer, E> serial::Write<u8> for Serial<TX, RX, Timer>
 where
     TX: OutputPin<Error = E>,
     RX: InputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     type Error = crate::serial::Error<E>;
 
@@ -84,7 +85,7 @@ impl<TX, RX, Timer, E> serial::Read<u8> for Serial<TX, RX, Timer>
 where
     TX: OutputPin<Error = E>,
     RX: InputPin<Error = E>,
-    Timer: CountDown + Periodic,
+    Timer: DelayNs,
 {
     type Error = crate::serial::Error<E>;
 

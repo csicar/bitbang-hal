@@ -50,10 +50,9 @@
   ```
 */
 
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
-use embedded_hal::digital::v2::{InputPin, OutputPin};
-use embedded_hal::timer::{CountDown, Periodic};
-use nb::block;
+use embedded_hal::delay::DelayNs;
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_nb::nb::block;
 
 /// I2C error
 #[derive(Debug, Eq, PartialEq)]
@@ -71,7 +70,7 @@ pub struct I2cBB<SCL, SDA, CLK>
 where
     SCL: OutputPin,
     SDA: OutputPin + InputPin,
-    CLK: CountDown + Periodic,
+    CLK: DelayNs,
 {
     scl: SCL,
     sda: SDA,
@@ -82,7 +81,7 @@ impl<SCL, SDA, CLK, E> I2cBB<SCL, SDA, CLK>
 where
     SCL: OutputPin<Error = E>,
     SDA: OutputPin<Error = E> + InputPin<Error = E>,
-    CLK: CountDown + Periodic,
+    CLK: DelayNs,
 {
     /// Create instance
     pub fn new(scl: SCL, sda: SDA, clk: CLK) -> Self {
@@ -238,7 +237,7 @@ impl<SCL, SDA, CLK, E> Write for I2cBB<SCL, SDA, CLK>
 where
     SCL: OutputPin<Error = E>,
     SDA: OutputPin<Error = E> + InputPin<Error = E>,
-    CLK: CountDown + Periodic,
+    CLK: DelayNs,
 {
     type Error = crate::i2c::Error<E>;
 
@@ -261,7 +260,7 @@ impl<SCL, SDA, CLK, E> Read for I2cBB<SCL, SDA, CLK>
 where
     SCL: OutputPin<Error = E>,
     SDA: OutputPin<Error = E> + InputPin<Error = E>,
-    CLK: CountDown + Periodic,
+    CLK: DelayNs,
 {
     type Error = crate::i2c::Error<E>;
 
@@ -288,7 +287,7 @@ impl<SCL, SDA, CLK, E> WriteRead for I2cBB<SCL, SDA, CLK>
 where
     SCL: OutputPin<Error = E>,
     SDA: OutputPin<Error = E> + InputPin<Error = E>,
-    CLK: CountDown + Periodic,
+    CLK: DelayNs,
 {
     type Error = crate::i2c::Error<E>;
 
