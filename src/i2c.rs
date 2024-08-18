@@ -88,7 +88,12 @@ where
         I2cBB { scl, sda, clk }
     }
 
-    fn i2c_start(&mut self) -> Result<(), crate::i2c::Error<E>> {
+    /// Send a raw I2C start.
+    ///
+    /// **This is a low-level control function.** For normal I2C devices,
+    /// please use the embedded-hal traits [Read], [Write], or
+    /// [WriteRead].
+    pub fn raw_i2c_start(&mut self) -> Result<(), crate::i2c::Error<E>> {
         self.set_scl_high()?;
         self.set_sda_high()?;
         self.wait_for_clk();
@@ -102,7 +107,12 @@ where
         Ok(())
     }
 
-    fn i2c_stop(&mut self) -> Result<(), crate::i2c::Error<E>> {
+    /// Send a raw I2C stop.
+    ///
+    /// **This is a low-level control function.** For normal I2C devices,
+    /// please use the embedded-hal traits [Read], [Write], or
+    /// [WriteRead].
+    pub fn raw_i2c_stop(&mut self) -> Result<(), crate::i2c::Error<E>> {
         self.set_scl_high()?;
         self.wait_for_clk();
 
@@ -180,8 +190,13 @@ where
         Ok(())
     }
 
+    /// Read raw bytes from the slave.
+    ///
+    /// **This is a low-level control function.** For normal I2C devices,
+    /// please use the embedded-hal traits [Read], [Write], or
+    /// [WriteRead].
     #[inline]
-    fn read_from_slave(&mut self, input: &mut [u8]) -> Result<(), crate::i2c::Error<E>> {
+    pub fn raw_read_from_slave(&mut self, input: &mut [u8]) -> Result<(), crate::i2c::Error<E>> {
         for i in 0..input.len() {
             let should_send_ack = i != (input.len() - 1);
             input[i] = self.i2c_read_byte(should_send_ack)?;
@@ -189,8 +204,13 @@ where
         Ok(())
     }
 
+    /// Send raw bytes to the slave.
+    ///
+    /// **This is a low-level control function.** For normal I2C devices,
+    /// please use the embedded-hal traits [Read], [Write], or
+    /// [WriteRead].
     #[inline]
-    fn write_to_slave(&mut self, output: &[u8]) -> Result<(), crate::i2c::Error<E>> {
+    pub fn raw_write_to_slave(&mut self, output: &[u8]) -> Result<(), crate::i2c::Error<E>> {
         for byte in output {
             self.i2c_write_byte(*byte)?;
             self.check_ack()?;
@@ -243,16 +263,16 @@ where
 
     fn write(&mut self, addr: u8, output: &[u8]) -> Result<(), Self::Error> {
         // ST
-        self.i2c_start()?;
+        self.raw_i2c_start()?;
 
         // SAD + W
         self.i2c_write_byte((addr << 1) | 0x0)?;
         self.check_ack()?;
 
-        self.write_to_slave(output)?;
+        self.raw_write_to_slave(output)?;
 
         // SP
-        self.i2c_stop()
+        self.raw_i2c_stop()
     }
 }
 
@@ -270,16 +290,16 @@ where
         }
 
         // ST
-        self.i2c_start()?;
+        self.raw_i2c_start()?;
 
         // SAD + R
         self.i2c_write_byte((addr << 1) | 0x1)?;
         self.check_ack()?;
 
-        self.read_from_slave(input)?;
+        self.raw_read_from_slave(input)?;
 
         // SP
-        self.i2c_stop()
+        self.raw_i2c_stop()
     }
 }
 
@@ -297,24 +317,24 @@ where
         }
 
         // ST
-        self.i2c_start()?;
+        self.raw_i2c_start()?;
 
         // SAD + W
         self.i2c_write_byte((addr << 1) | 0x0)?;
         self.check_ack()?;
 
-        self.write_to_slave(output)?;
+        self.raw_write_to_slave(output)?;
 
         // SR
-        self.i2c_start()?;
+        self.raw_i2c_start()?;
 
         // SAD + R
         self.i2c_write_byte((addr << 1) | 0x1)?;
         self.check_ack()?;
 
-        self.read_from_slave(input)?;
+        self.raw_read_from_slave(input)?;
 
         // SP
-        self.i2c_stop()
+        self.raw_i2c_stop()
     }
 }
