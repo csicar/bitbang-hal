@@ -14,7 +14,6 @@
 //!
 
 use core::cmp::max;
-
 pub use embedded_hal_async::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 use embedded_hal_async::{delay::DelayNs, spi::SpiBus};
 
@@ -23,7 +22,6 @@ use embedded_hal::{
     spi::ErrorType,
 };
 use embedded_hal_async::spi::{Mode, Polarity};
-use fugit::Duration;
 use fugit::RateExtU32;
 
 /// Error type
@@ -100,9 +98,9 @@ where
 
 impl<Miso, Mosi, Sck, Delay, E> SPI<Miso, Mosi, Sck, Delay>
 where
-    Miso: InputPin<Error = E>,
-    Mosi: OutputPin<Error = E>,
-    Sck: OutputPin<Error = E>,
+    Miso: InputPin<Error=E>,
+    Mosi: OutputPin<Error=E>,
+    Sck: OutputPin<Error=E>,
     Delay: DelayNs,
 {
     /// Create instance
@@ -126,7 +124,7 @@ where
             Polarity::IdleLow => spi.sck.set_low(),
             Polarity::IdleHigh => spi.sck.set_high(),
         }
-        .unwrap_or(());
+            .unwrap_or(());
 
         spi
     }
@@ -176,6 +174,8 @@ where
                 BitOrder::LSBFirst => (clock_out >> bit_offset) & 0b1,
             };
 
+            println!("Write bit {} of {:b}", out_bit, clock_out);
+
             if out_bit == 1 {
                 self.mosi.set_high().map_err(Error::Bus)?;
             } else {
@@ -219,9 +219,9 @@ where
 
 impl<Miso, Mosi, Sck, Timer, E> ErrorType for SPI<Miso, Mosi, Sck, Timer>
 where
-    Miso: InputPin<Error = E>,
-    Mosi: OutputPin<Error = E>,
-    Sck: OutputPin<Error = E>,
+    Miso: InputPin<Error=E>,
+    Mosi: OutputPin<Error=E>,
+    Sck: OutputPin<Error=E>,
     Timer: DelayNs,
     E: core::fmt::Debug,
 {
@@ -230,9 +230,9 @@ where
 
 impl<Miso, Mosi, Sck, Timer, E> SpiBus<u8> for SPI<Miso, Mosi, Sck, Timer>
 where
-    Miso: InputPin<Error = E>,
-    Mosi: OutputPin<Error = E>,
-    Sck: OutputPin<Error = E>,
+    Miso: InputPin<Error=E>,
+    Mosi: OutputPin<Error=E>,
+    Sck: OutputPin<Error=E>,
     Timer: DelayNs,
     E: core::fmt::Debug,
 {
@@ -283,123 +283,138 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use embedded_hal_mock::eh1::digital::{Mock as PinMock, State as PinState, Transaction as PinTransaction};
-    use embedded_hal_mock::eh1::delay::NoopDelay as MockDelay;
+    use alloc::vec::Vec;
     use embedded_hal_async::spi::MODE_0;
-    use embedded_hal_mock::eh1::MockError;
+    use embedded_hal_mock::eh1::delay::NoopDelay as MockDelay;
+    use embedded_hal_mock::eh1::digital::{
+        Mock as PinMock, State as PinState, Transaction as PinTransaction,
+    };
 
-    #[tokio::test]
-    async fn test_spi_write_single_byte() {
-        let miso = PinMock::new(&[]);
-        let mosi = PinMock::new(&[
-            PinTransaction::set(PinState::Low), // MOSI writes start here
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-        ]);
-        let sck = PinMock::new(&[
-            PinTransaction::set(PinState::Low), // SCK toggles start here
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-        ]);
-        let delay = MockDelay::new();
+    fn waveform(string: &str) -> Vec<PinState> {
+        let mut transactions = Vec::new();
+        let mut last_state = None;
+        let mut last_action = string.chars().next().unwrap();
+        for step in string.chars() {
+            let step = if step == '.' { last_action } else { step };
+            match step {
+                '0' => transactions.push(PinState::Low),
+                '1' => transactions.push(PinState::High),
+                'p' | 'P' => {
+                    let next_state = if last_state == Some(PinState::Low) {
+                        PinState::High
+                    } else {
+                        PinState::Low
+                    };
+                    transactions.push(next_state);
+                    last_state = Some(next_state);
+                }
+                'n' | 'N' => {
+                    let next_state = if last_state == Some(PinState::High) {
+                        PinState::Low
+                    } else {
+                        PinState::High
+                    };
+                    transactions.push(next_state);
+                    last_state = Some(next_state);
+                }
+                _ => panic!("Invalid binary literal"),
+            };
+            last_action = step;
+        }
+        transactions
+    }
 
-        let mut spi = SPI::new(MODE_0, miso, mosi, sck, delay, SpiConfig::default());
-        let data = [0xAA]; // 10101010 in binary
-        spi.write(&data).await.expect("SPI write failed");
+    #[test]
+    fn test_states() {
+        let res = waveform("p..");
+        assert_eq!(res, vec![PinState::Low, PinState::High, PinState::Low]);
 
-        // Verify that all transactions were completed
-        spi.mosi.done();
-        spi.sck.done();
+        let res = waveform("P..");
+        assert_eq!(res, vec![PinState::Low, PinState::High, PinState::Low]);
+
+        let res = waveform("n..");
+        assert_eq!(res, vec![PinState::High, PinState::Low, PinState::High]);
+
+        let res = waveform("N..");
+        assert_eq!(res, vec![PinState::High, PinState::Low, PinState::High]);
+
+        let res = waveform("n.0");
+        assert_eq!(res, vec![PinState::High, PinState::Low, PinState::Low]);
+    }
+
+    fn input_waveform(string: &str) -> Vec<PinTransaction> {
+        waveform(string)
+            .into_iter()
+            .map(PinTransaction::get)
+            .collect()
+    }
+
+    fn output_waveform(string: &str) -> Vec<PinTransaction> {
+        waveform(string)
+            .into_iter()
+            .map(PinTransaction::set)
+            .collect()
     }
 
     #[tokio::test]
     async fn test_spi_read_single_byte() {
-        let miso = PinMock::new(&[
-            PinTransaction::get(PinState::High), // MISO returns 1
-            PinTransaction::get(PinState::Low),  // MISO returns 0
-            PinTransaction::get(PinState::High), // MISO returns 1
-            PinTransaction::get(PinState::Low),  // MISO returns 0
-            PinTransaction::get(PinState::High), // MISO returns 1
-            PinTransaction::get(PinState::Low),  // MISO returns 0
-            PinTransaction::get(PinState::High), // MISO returns 1
-            PinTransaction::get(PinState::Low),  // MISO returns 0
-        ]);
-        let mosi = PinMock::new(&[]);
-        let sck = PinMock::new(&[
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-        ]);
+        let miso = PinMock::new(&input_waveform("10101010"));
+        // write default value (0x00) to mosi
+        let mosi = PinMock::new(&output_waveform("00000000"));
+        let sck = PinMock::new(&output_waveform("01010101010101010"));
         let delay = MockDelay::new();
 
         let mut spi = SPI::new(MODE_0, miso, mosi, sck, delay, SpiConfig::default());
         let mut data = [0x00];
         spi.read(&mut data).await.expect("SPI read failed");
 
-        assert_eq!(data[0], 0b10101010); // 0xAA in binary
+        spi.mosi.done();
+        spi.miso.done();
+        spi.sck.done();
+        assert_eq!(data[0], 0b10101010);
     }
 
     #[tokio::test]
-    async fn test_spi_transfer() {
-        let miso = PinMock::new(&[
-            PinTransaction::get(PinState::Low),
-            PinTransaction::get(PinState::High),
-            PinTransaction::get(PinState::Low),
-            PinTransaction::get(PinState::High),
-            PinTransaction::get(PinState::Low),
-            PinTransaction::get(PinState::High),
-            PinTransaction::get(PinState::Low),
-            PinTransaction::get(PinState::High),
-        ]);
-        let mosi = PinMock::new(&[
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-        ]);
-        let sck = PinMock::new(&[
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-            PinTransaction::set(PinState::Low),
-            PinTransaction::set(PinState::High),
-        ]);
+    async fn test_spi_write_single_byte() {
+        // this is ignored when reading
+        let miso = PinMock::new(&input_waveform("00000000"));
+        let mosi = PinMock::new(&output_waveform("01010101"));
+        let sck = PinMock::new(&output_waveform("01010101010101010"));
+        let delay = MockDelay::new();
+
+        let mut spi = SPI::new(MODE_0, miso, mosi, sck, delay, SpiConfig::default());
+        let data = [0b01010101]; // 10101010 in binary
+        spi.write(&data).await.expect("SPI write failed");
+
+        // Verify that all transactions were completed
+        spi.mosi.done();
+        spi.sck.done();
+        spi.miso.done();
+    }
+
+    /// Based on https://www.analog.com/en/resources/analog-dialogue/articles/introduction-to-spi-interface.html
+    /// Figure https://www.analog.com/en/_/media/images/analog-dialogue/en/volume-52/number-3/articles/introduction-to-spi-interface/205973_fig_02.png?la=en&rev=c19f52f7fc014bbda34df6bf7c2a18fe&sc_lang=en
+    #[tokio::test]
+    async fn analog_com_example_figure_2() {
+        let miso = PinMock::new(&input_waveform("10111010"));
+        let mosi = PinMock::new(&output_waveform("10100101"));
+        let sck = PinMock::new(&output_waveform("01010101010101010"));
         let delay = MockDelay::new();
 
         let mut spi = SPI::new(MODE_0, miso, mosi, sck, delay, SpiConfig::default());
         let mut read_data = [0x00];
-        let write_data = [0xAA];
+        let write_data = [0xA5];
 
         spi.transfer(&mut read_data, &write_data)
             .await
             .expect("SPI transfer failed");
 
-        assert_eq!(read_data[0], 0b01010101); // Received bits in opposite phase
+        spi.miso.done();
+        spi.mosi.done();
+        spi.sck.done();
+        assert_eq!(read_data[0], 0xBA); // Received bits in opposite phase
     }
 }
