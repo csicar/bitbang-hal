@@ -63,7 +63,7 @@ pub struct SpiConfig {
     mode: Mode,
     bit_order: BitOrder,
     /// Value used when still receiving bits from MISO, but not value is available
-    /// in buffer to be written to MOSI. This value is used instead. Usually `0x00``
+    /// in buffer to be written to MOSI. This value is used instead. Usually `0x00`
     empty_write_value: u8,
     /// controls the clock speed. `f = 2 / half_period_duration_ns`
     half_period_duration_ns: u32,
